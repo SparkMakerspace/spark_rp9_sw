@@ -32,6 +32,11 @@ Adafruit_USBD_HID usb_hid(desc_hid_report, sizeof(desc_hid_report), HID_ITF_PROT
 
 bool activeState = false;
 
+uint8_t led_blink_divider;
+uint8_t led_index = 0;
+
+uint8_t builtin_leds[] = {LED_BUILTIN_R, LED_BUILTIN_G, LED_BUILTIN_B};
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 //                                SETUP                                       //
@@ -39,8 +44,9 @@ bool activeState = false;
 ////////////////////////////////////////////////////////////////////////////////
 void setup()
 {
+  led_blink_divider = 0;
 #if defined(PIN_NEOPIXEL_POWER)
-  pinMode(PIN_NEOPIXEL_POWER,OUTPUT);
+  pinMode(PIN_NEOPIXEL_POWER, OUTPUT);
   digitalWrite(PIN_NEOPIXEL_POWER, 1);
 #endif
 #if defined(ARDUINO_ARCH_MBED) && defined(ARDUINO_ARCH_RP2040)
@@ -55,6 +61,12 @@ void setup()
   digitalWrite(LED1, 1); // turn off
   pinMode(LED2, OUTPUT);
   digitalWrite(LED2, 1); // turn off
+  pinMode(LED_BUILTIN_R, OUTPUT);
+  digitalWrite(LED_BUILTIN_R, 1); // turn off
+  pinMode(LED_BUILTIN_G, OUTPUT);
+  digitalWrite(LED_BUILTIN_G, 1); // turn off
+  pinMode(LED_BUILTIN_B, OUTPUT);
+  digitalWrite(LED_BUILTIN_B, 1); // turn off
 
   // Neopixel
   pixels.begin();
@@ -92,10 +104,23 @@ void loop()
   // poll gpio once each 2 ms
   delay(2);
 
+  led_blink_divider += 1U;
+  led_blink_divider = (led_blink_divider < 128)? led_blink_divider : 0;
+  if (led_blink_divider == 0)
+  {
+    for (uint8_t i = 0; i < sizeof(builtin_leds); i++)
+    {
+      digitalWrite(builtin_leds[i], 1); // turn off all builtin LEDS
+    }
+    digitalWrite(builtin_leds[led_index], 0); // turn on the one we want
+    led_index += 1U;
+    led_index = (led_index < 3)? led_index : 0;
+  }
+
   // used to avoid send multiple consecutive zero report for keyboard
-  static bool keyPressedPreviously = false;
+  // static bool keyPressedPreviously = false;
   uint8_t count = 0;
-  uint8_t keycode[9] = {0};
+  // uint8_t keycode[9] = {0};
 
   for (uint8_t i = 0; i < 3; i++)
   {
@@ -121,7 +146,7 @@ void loop()
       // check each row
       if (digitalRead(rows[j]))
       {
-        keycode[count++] = hidcode[(j * 3) + i]; // put the key press in the buffer
+        // keycode[count++] = hidcode[(j * 3) + i]; // put the key press in the buffer
         if (j == 0)
         {
           if (i == 0)
@@ -137,7 +162,7 @@ void loop()
           else
             digitalWrite(LED2, 1); // turn off
         }
-        else
+        else if (j == 1)
         {
           if (i == 0)
             pixels.fill(0xff0000);
@@ -145,6 +170,16 @@ void loop()
             pixels.fill(0x00ff00);
           if (i == 2)
             pixels.fill(0x0000ff);
+          pixels.show();
+        }
+        else if (j == 2)
+        {
+          if (i == 0)
+            pixels.fill(0xffff00);
+          if (i == 1)
+            pixels.fill(0x00ffff);
+          if (i == 2)
+            pixels.fill(0xff00ff);
           pixels.show();
         }
       }

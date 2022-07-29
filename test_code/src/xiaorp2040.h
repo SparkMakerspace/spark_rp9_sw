@@ -4,6 +4,7 @@
 
 #define D0  26U
 #define A0  26U
+#define LED0 26U
 #define D1  27U
 #define A1  27U
 #define D2  28U
@@ -16,8 +17,10 @@
 #define SCL 7U
 #define D6  0U
 #define TX  0U
+#define LED1 0U
 #define D7  1U
 #define RX  1U
+#define LED2 1U
 #define D8  2U
 #define SCK 2U
 #define D9  4U
@@ -27,5 +30,7 @@
 #define LED_BUILTIN_R 17U
 #define LED_BUILTIN_G 16U
 #define LED_BUILTIN_B 25U
+#define PIN_NEOPIXEL 12U
+#define PIN_NEOPIXEL_POWER 11U
 
 #endif

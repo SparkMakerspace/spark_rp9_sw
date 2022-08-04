@@ -64,14 +64,29 @@
 
 Adafruit_SPIFlash flash(&flashTransport);
 
-Adafruit_USBD_MSC usb_msc;
-
 #define COL1 D8
 #define COL2 D9
 #define COL3 D10
 #define ROW1 D1
 #define ROW2 D2
 #define ROW3 D3
+
+// file system object from SdFat
+FatFileSystem fatfs;
+
+FatFile root;
+FatFile file;
+
+// USB Mass Storage object
+Adafruit_USBD_MSC usb_msc;
+
+// Check if flash is formatted
+bool fs_formatted;
+
+// Set to true when PC write to flash
+bool fs_changed;
+
+bool button_pressed;
 
 //--------------------------------------------------------------------+
 // HID Config
@@ -81,29 +96,16 @@ Adafruit_USBD_MSC usb_msc;
 // Single Report (no ID) descriptor
 uint8_t const desc_hid_report[] =
 {
-  TUD_HID_REPORT_DESC_MOUSE()
+  TUD_HID_REPORT_DESC_KEYBOARD()
 };
 
 // USB HID object. For ESP32 these values cannot be changed after this declaration
 // desc report, desc len, protocol, interval, use out endpoint
 Adafruit_USBD_HID usb_hid(desc_hid_report, sizeof(desc_hid_report), HID_ITF_PROTOCOL_NONE, 2, false);
 
-#if defined(ARDUINO_SAMD_CIRCUITPLAYGROUND_EXPRESS) || defined(ARDUINO_NRF52840_CIRCUITPLAY)
-  const int pin = 4; // Left Button
-  bool activeState = true;
 
-#elif defined(ARDUINO_FUNHOUSE_ESP32S2)
-  const int pin = BUTTON_DOWN;
-  bool activeState = true;
 
-#elif defined PIN_BUTTON1
-  const int pin = PIN_BUTTON1;
-  bool activeState = false;
 
-#else
-  const int pin = ROW1;
-  bool activeState = true;
-#endif
 
 // Callback invoked when received READ10 command.
 // Copy disk's data to buffer (up to bufsize) and 
@@ -120,6 +122,7 @@ int32_t msc_read_cb (uint32_t lba, void* buffer, uint32_t bufsize)
 // return number of written bytes (must be multiple of block size)
 int32_t msc_write_cb (uint32_t lba, uint8_t* buffer, uint32_t bufsize)
 {
+  digitalWrite(LED_BUILTIN, HIGH);
   // Note: SPIFLash Block API: readBlocks/writeBlocks/syncBlocks
   // already include 4K sector caching internally. We don't need to cache it, yahhhh!!
   return flash.writeBlocks(lba, buffer, bufsize/512) ? bufsize : -1;
@@ -130,7 +133,18 @@ int32_t msc_write_cb (uint32_t lba, uint8_t* buffer, uint32_t bufsize)
 void msc_flush_cb (void)
 {
   flash.syncBlocks();
+  
+  // clear file system's cache to force refresh
+  fatfs.cacheClear();
+
+  fs_changed = true;
+
+  digitalWrite(LED_BUILTIN, LOW);
 }
+
+
+
+
 
 // the setup function runs once when you press reset or power the board
 void setup()
@@ -153,7 +167,7 @@ void setup()
   
   usb_msc.begin();
 
-  // Set up button
+  // Set up rows and columns
   pinMode(COL1, OUTPUT);
   digitalWrite(COL1,1);
   pinMode(COL2, OUTPUT);
@@ -164,43 +178,85 @@ void setup()
   pinMode(ROW2, INPUT_PULLDOWN);
   pinMode(ROW3, INPUT_PULLDOWN);
 
+  // Init file system on the flash
+  fs_formatted = fatfs.begin(&flash);
+
+
   // Notes: following commented-out functions has no affect on ESP32
   // usb_hid.setReportDescriptor(desc_hid_report, sizeof(desc_hid_report));
 
   usb_hid.begin();
 
   Serial.begin(115200);
-  //while ( !Serial ) delay(10);   // wait for native usb
+  while ( !Serial ) delay(10);   // wait for native usb
 
-  Serial.println("Adafruit TinyUSB Mouse + Mass Storage (external flash) example");
+   if ( !fs_formatted )
+  {
+    Serial.println("Failed to init files system, flash may not be formatted");
+  }
+
+  Serial.println("Spark_RP9 Macropad");
+  Serial.print("JEDEC ID: 0x"); Serial.println(flash.getJEDECID(), HEX);
+  Serial.print("Flash size: "); Serial.print(flash.size() / 1024); Serial.println(" KB");
+
+  fs_changed = true; // to print contents initially
+
 }
 
 void loop()
 {
-  // poll gpio once each 10 ms
-  delay(10);
 
-  // button is active high
-  uint32_t const btn = digitalRead(ROW1);
-
+  button_pressed == false;
   // Remote wakeup
-  if ( TinyUSBDevice.suspended() && btn )
+  if ( TinyUSBDevice.suspended() && button_pressed)
   {
     // Wake up host if we are in suspend mode
     // and REMOTE_WAKEUP feature is enabled by host
     tud_remote_wakeup();
   }
-
-  /*------------- Mouse -------------*/
-  if ( usb_hid.ready() )
+  if ( fs_changed )
   {
-    if ( btn )
-    {
-      int8_t const delta = 5;
-      usb_hid.mouseMove(0, delta, delta); // no ID: right + down
+    fs_changed = false;
 
-      // delay a bit before attempt to send keyboard report
-      delay(10);
+    // check if host formatted disk
+    if (!fs_formatted)
+    {
+      fs_formatted = fatfs.begin(&flash);
     }
+
+    // skip if still not formatted
+    if (!fs_formatted) return;
+
+    Serial.println("Opening root");
+
+    if ( !root.open("/") )
+    {
+      Serial.println("open root failed");
+      return;
+    }
+
+    Serial.println("Flash contents:");
+
+    // Open next file in root.
+    // Warning, openNext starts at the current directory position
+    // so a rewind of the directory may be required.
+    while ( file.openNext(&root, O_RDONLY) )
+    {
+      file.printFileSize(&Serial);
+      Serial.write(' ');
+      file.printName(&Serial);
+      if ( file.isDir() )
+      {
+        // Indicate a directory.
+        Serial.write('/');
+      }
+      Serial.println();
+      file.close();
+    }
+
+    root.close();
+
+    Serial.println();
+    delay(1000); // refresh every 1 second
   }
 }

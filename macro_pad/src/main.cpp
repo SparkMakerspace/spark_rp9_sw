@@ -14,137 +14,7 @@
  * - Press button pin will move mouse toward bottom right of monitor
  */
 
-#include "SPI.h"
-#include "SdFat.h"
-#include "Adafruit_SPIFlash.h"
-#include "Adafruit_TinyUSB.h"
-
-//--------------------------------------------------------------------+
-// MSC External Flash Config
-//--------------------------------------------------------------------+
-
-// Un-comment to run example with custom SPI SPI and SS e.g with FRAM breakout
-// #define CUSTOM_CS   A5
-// #define CUSTOM_SPI  SPI
-
-#if defined(CUSTOM_CS) && defined(CUSTOM_SPI)
-  Adafruit_FlashTransport_SPI flashTransport(CUSTOM_CS, CUSTOM_SPI);
-
-#elif defined(ARDUINO_ARCH_ESP32)
-  // ESP32 use same flash device that store code.
-  // Therefore there is no need to specify the SPI and SS
-  Adafruit_FlashTransport_ESP32 flashTransport;
-
-#elif defined(ARDUINO_ARCH_RP2040)
-  // RP2040 use same flash device that store code.
-  // Therefore there is no need to specify the SPI and SS
-  // Use default (no-args) constructor to be compatible with CircuitPython partition scheme
-  Adafruit_FlashTransport_RP2040 flashTransport;
-
-  // For generic usage:
-  //    Adafruit_FlashTransport_RP2040 flashTransport(start_address, size)
-  // If start_address and size are both 0, value that match filesystem setting in
-  // 'Tools->Flash Size' menu selection will be used
-
-#else
-  // On-board external flash (QSPI or SPI) macros should already
-  // defined in your board variant if supported
-  // - EXTERNAL_FLASH_USE_QSPI
-  // - EXTERNAL_FLASH_USE_CS/EXTERNAL_FLASH_USE_SPI
-  #if defined(EXTERNAL_FLASH_USE_QSPI)
-    Adafruit_FlashTransport_QSPI flashTransport;
-
-  #elif defined(EXTERNAL_FLASH_USE_SPI)
-    Adafruit_FlashTransport_SPI flashTransport(EXTERNAL_FLASH_USE_CS, EXTERNAL_FLASH_USE_SPI);
-
-  #else
-    #error No QSPI/SPI flash are defined on your board variant.h !
-  #endif
-#endif
-
-Adafruit_SPIFlash flash(&flashTransport);
-
-#define COL1 D8
-#define COL2 D9
-#define COL3 D10
-#define ROW1 D1
-#define ROW2 D2
-#define ROW3 D3
-
-// file system object from SdFat
-FatFileSystem fatfs;
-
-FatFile root;
-FatFile file;
-
-// USB Mass Storage object
-Adafruit_USBD_MSC usb_msc;
-
-// Check if flash is formatted
-bool fs_formatted;
-
-// Set to true when PC write to flash
-bool fs_changed;
-
-bool button_pressed;
-
-//--------------------------------------------------------------------+
-// HID Config
-//--------------------------------------------------------------------+
-
-// HID report descriptor using TinyUSB's template
-// Single Report (no ID) descriptor
-uint8_t const desc_hid_report[] =
-{
-  TUD_HID_REPORT_DESC_KEYBOARD()
-};
-
-// USB HID object. For ESP32 these values cannot be changed after this declaration
-// desc report, desc len, protocol, interval, use out endpoint
-Adafruit_USBD_HID usb_hid(desc_hid_report, sizeof(desc_hid_report), HID_ITF_PROTOCOL_NONE, 2, false);
-
-
-
-
-
-// Callback invoked when received READ10 command.
-// Copy disk's data to buffer (up to bufsize) and 
-// return number of copied bytes (must be multiple of block size) 
-int32_t msc_read_cb (uint32_t lba, void* buffer, uint32_t bufsize)
-{
-  // Note: SPIFLash Block API: readBlocks/writeBlocks/syncBlocks
-  // already include 4K sector caching internally. We don't need to cache it, yahhhh!!
-  return flash.readBlocks(lba, (uint8_t*) buffer, bufsize/512) ? bufsize : -1;
-}
-
-// Callback invoked when received WRITE10 command.
-// Process data in buffer to disk's storage and 
-// return number of written bytes (must be multiple of block size)
-int32_t msc_write_cb (uint32_t lba, uint8_t* buffer, uint32_t bufsize)
-{
-  digitalWrite(LED_BUILTIN, HIGH);
-  // Note: SPIFLash Block API: readBlocks/writeBlocks/syncBlocks
-  // already include 4K sector caching internally. We don't need to cache it, yahhhh!!
-  return flash.writeBlocks(lba, buffer, bufsize/512) ? bufsize : -1;
-}
-
-// Callback invoked when WRITE10 command is completed (status received and accepted by host).
-// used to flush any pending cache.
-void msc_flush_cb (void)
-{
-  flash.syncBlocks();
-  
-  // clear file system's cache to force refresh
-  fatfs.cacheClear();
-
-  fs_changed = true;
-
-  digitalWrite(LED_BUILTIN, LOW);
-}
-
-
-
-
+#include "main.h"
 
 // the setup function runs once when you press reset or power the board
 void setup()
@@ -169,7 +39,7 @@ void setup()
 
   // Set up rows and columns
   pinMode(COL1, OUTPUT);
-  digitalWrite(COL1,1);
+  digitalWrite(COL1,0);
   pinMode(COL2, OUTPUT);
   digitalWrite(COL2,0);
   pinMode(COL3, OUTPUT);
@@ -177,6 +47,19 @@ void setup()
   pinMode(ROW1, INPUT_PULLDOWN);
   pinMode(ROW2, INPUT_PULLDOWN);
   pinMode(ROW3, INPUT_PULLDOWN);
+  pinMode(LED1, OUTPUT);
+  digitalWrite(LED1,1);
+  pinMode(LED2, OUTPUT);
+  digitalWrite(LED2,1);
+  pinMode(LED3, OUTPUT);
+  digitalWrite(LED3,1);
+  pinMode(PIN_LED_R, OUTPUT);
+  digitalWrite(PIN_LED_R,1);
+  pinMode(PIN_LED_G, OUTPUT);
+  digitalWrite(PIN_LED_G,1);
+  pinMode(PIN_LED_B, OUTPUT);
+  digitalWrite(PIN_LED_B,1);
+
 
   // Init file system on the flash
   fs_formatted = fatfs.begin(&flash);
@@ -201,19 +84,13 @@ void setup()
 
   fs_changed = true; // to print contents initially
 
+  rp2040.fifo.push((uint32_t)&defpage);
 }
 
 void loop()
 {
 
-  button_pressed == false;
-  // Remote wakeup
-  if ( TinyUSBDevice.suspended() && button_pressed)
-  {
-    // Wake up host if we are in suspend mode
-    // and REMOTE_WAKEUP feature is enabled by host
-    tud_remote_wakeup();
-  }
+
   if ( fs_changed )
   {
     fs_changed = false;
@@ -259,4 +136,64 @@ void loop()
     Serial.println();
     delay(1000); // refresh every 1 second
   }
+}
+
+keypage* p;
+
+void setup1(){
+  while(rp2040.fifo.available() < 1){
+    delay(100); // sit and spin
+  }
+  p = (keypage*)(rp2040.fifo.pop());
+
+}
+
+void loop1(){
+  bool button_pressed = false;
+  // Remote wakeup
+  if ( TinyUSBDevice.suspended() && button_pressed)
+  {
+    // Wake up host if we are in suspend mode
+    // and REMOTE_WAKEUP feature is enabled by host
+    tud_remote_wakeup();
+  }
+}
+
+//------------------------------------------------------------------+
+// Mass Storage Class callback functions
+//------------------------------------------------------------------+
+
+// Callback invoked when received READ10 command.
+// Copy disk's data to buffer (up to bufsize) and 
+// return number of copied bytes (must be multiple of block size) 
+int32_t msc_read_cb (uint32_t lba, void* buffer, uint32_t bufsize)
+{
+  // Note: SPIFLash Block API: readBlocks/writeBlocks/syncBlocks
+  // already include 4K sector caching internally. We don't need to cache it, yahhhh!!
+  return flash.readBlocks(lba, (uint8_t*) buffer, bufsize/512) ? bufsize : -1;
+}
+
+// Callback invoked when received WRITE10 command.
+// Process data in buffer to disk's storage and 
+// return number of written bytes (must be multiple of block size)
+int32_t msc_write_cb (uint32_t lba, uint8_t* buffer, uint32_t bufsize)
+{
+  digitalWrite(LED_BUILTIN, HIGH);
+  // Note: SPIFLash Block API: readBlocks/writeBlocks/syncBlocks
+  // already include 4K sector caching internally. We don't need to cache it, yahhhh!!
+  return flash.writeBlocks(lba, buffer, bufsize/512) ? bufsize : -1;
+}
+
+// Callback invoked when WRITE10 command is completed (status received and accepted by host).
+// used to flush any pending cache.
+void msc_flush_cb (void)
+{
+  flash.syncBlocks();
+  
+  // clear file system's cache to force refresh
+  fatfs.cacheClear();
+
+  fs_changed = true;
+
+  digitalWrite(LED_BUILTIN, LOW);
 }

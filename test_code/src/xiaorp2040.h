@@ -1,3 +1,10 @@
+/*********************************************************************
+ See main.cpp for full header-text.
+
+ MIT license, check LICENSE for more information
+ Copyright (c) 2022 John Scimone
+ All text above must be included in any redistribution
+*********************************************************************/
 
 #ifndef XIAORP2040_H_
 #define XIAORP2040_H_

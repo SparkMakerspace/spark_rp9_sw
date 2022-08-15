@@ -1,3 +1,16 @@
+/*********************************************************************
+ Author: John Scimone
+ Organization: Spark Markerspace Co
+
+ This software is for the Spark_RP9 - a simple 9-key macropad built 
+ around the RP2040 that an electronics beginner can assemble and 
+ configure.
+
+ MIT license, check LICENSE for more information
+ Copyright (c) 2022 John Scimone
+ All text above must be included in any redistribution
+*********************************************************************/
+
 #include <Arduino.h>
 #include <xiaorp2040.h>
 #include <Adafruit_NeoPixel.h>

@@ -13,27 +13,17 @@
 #include "SPI.h"
 #include "SdFat.h"
 #include "Adafruit_SPIFlash.h"
-#include "Adafruit_TinyUSB.h"
+#include "keymapping.h"
+#include "ArduinoJson.h"
 #include <Adafruit_NeoPixel.h>
 #include <array>
+#include <regex>
 
 //--------------------------------------------------------------------+
 // MSC External Flash Config
 //--------------------------------------------------------------------+
 
-// Un-comment to run example with custom SPI SPI and SS e.g with FRAM breakout
-// #define CUSTOM_CS   A5
-// #define CUSTOM_SPI  SPI
-
-#if defined(CUSTOM_CS) && defined(CUSTOM_SPI)
-Adafruit_FlashTransport_SPI flashTransport(CUSTOM_CS, CUSTOM_SPI);
-
-#elif defined(ARDUINO_ARCH_ESP32)
-// ESP32 use same flash device that store code.
-// Therefore there is no need to specify the SPI and SS
-Adafruit_FlashTransport_ESP32 flashTransport;
-
-#elif defined(ARDUINO_ARCH_RP2040)
+#if defined(ARDUINO_ARCH_RP2040)
 // RP2040 use same flash device that store code.
 // Therefore there is no need to specify the SPI and SS
 // Use default (no-args) constructor to be compatible with CircuitPython partition scheme
@@ -43,21 +33,6 @@ Adafruit_FlashTransport_RP2040 flashTransport;
 //    Adafruit_FlashTransport_RP2040 flashTransport(start_address, size)
 // If start_address and size are both 0, value that match filesystem setting in
 // 'Tools->Flash Size' menu selection will be used
-
-#else
-// On-board external flash (QSPI or SPI) macros should already
-// defined in your board variant if supported
-// - EXTERNAL_FLASH_USE_QSPI
-// - EXTERNAL_FLASH_USE_CS/EXTERNAL_FLASH_USE_SPI
-#if defined(EXTERNAL_FLASH_USE_QSPI)
-Adafruit_FlashTransport_QSPI flashTransport;
-
-#elif defined(EXTERNAL_FLASH_USE_SPI)
-Adafruit_FlashTransport_SPI flashTransport(EXTERNAL_FLASH_USE_CS, EXTERNAL_FLASH_USE_SPI);
-
-#else
-#error No QSPI/SPI flash are defined on your board variant.h !
-#endif
 #endif
 
 Adafruit_SPIFlash flash(&flashTransport);
@@ -97,7 +72,11 @@ Adafruit_USBD_HID usb_hid(desc_hid_report, sizeof(desc_hid_report), HID_ITF_PROT
 int32_t msc_read_cb(uint32_t, void *, uint32_t);
 int32_t msc_write_cb(uint32_t, uint8_t *, uint32_t);
 void msc_flush_cb(void);
+void removeSpace(char *);
 void handleKeypress(int);
+bool parseConfig(FatFile);
+void blinkGreen(int);
+void blinkRed(int);
 
 //--------------------------------------------------------------------+
 // Other Stuff
@@ -123,48 +102,113 @@ std::array<uint8_t, 3> rows = {ROW1, ROW2, ROW3};
 std::array<uint8_t, 3> leds = {LED1, LED2, LED3};
 std::array<uint8_t, 3> rgbLeds = {PIN_LED_R, PIN_LED_G, PIN_LED_B};
 
+//--------------------------------------------------------------------+
+// Keypage Class
+//--------------------------------------------------------------------+
 class Keypage
 {
 public:
-  int page;                       // page number
-  std::array<int, 9> pagechange;  // which page each key changes to. 69 if don't change.
-  std::array<uint8_t, 9> hidcode; // hidcode for each key on the page. 0 for no output
+  int page;                        // page number
+  std::array<int, 9> pagechange;   // which page each key changes to. 69 if don't change.
+  std::array<uint8_t, 9> hidcode;  // hidcode for each key on the page. 0 for no output
+  std::array<uint8_t, 9> modcode;  // modifier for each key on the page
+  std::array<bool, 3> leds;        // board LEDs
+  std::array<bool, 3> builtinleds; // builtin RGB LEDs
+  uint32_t neopixel;               // Neopixel value
 
-  Keypage(int page, std::array<int, 9> pagechange, std::array<uint8_t, 9> hidcode)
+  Keypage(int page,
+          std::array<int, 9> pagechange,
+          std::array<uint8_t, 9> hidcode,
+          std::array<uint8_t, 9> modcode,
+          std::array<bool, 3> leds,
+          std::array<bool, 3> builtinleds,
+          uint32_t neopixel)
   {
     this->page = page;
     this->pagechange = pagechange;
     this->hidcode = hidcode;
+    this->modcode = modcode;
+    this->leds = leds;
+    this->builtinleds = builtinleds;
+    this->neopixel = neopixel;
   }
-  Keypage() {}
+  Keypage() {
+    this->page = -1;
+    this->pagechange = {69};
+    this->hidcode = {0};
+    this->modcode = {0};
+    this->leds = {false};
+    this->builtinleds = {false};
+    this->neopixel = 0;
+  }
 
-  void fill(int page, std::array<int, 9> pagechange, std::array<uint8_t, 9> hidcode)
+  void fill(int page,
+            std::array<int, 9> pagechange,
+            std::array<uint8_t, 9> hidcode,
+            std::array<uint8_t, 9> modcode,
+            std::array<bool, 3> leds,
+            std::array<bool, 3> builtinleds,
+            uint32_t neopixel)
   {
     this->page = page;
     this->pagechange = pagechange;
     this->hidcode = hidcode;
+    this->leds = leds;
+    this->modcode = modcode;
+    this->builtinleds = builtinleds;
+    this->neopixel = neopixel;
+  }
+
+  void print()
+  {
+    Serial.print("Page: ");
+    Serial.println(this->page);
+    Serial.println("Pagechange: ");
+    for (int i = 0; i < 9; i++){
+      Serial.println(this->pagechange[i]);
+    }
+        Serial.println("hidcode: ");
+    for (int i = 0; i < 9; i++){
+      Serial.println(this->hidcode[i]);
+    }
+        Serial.println("leds: ");
+    for (int i = 0; i < 3; i++){
+      Serial.println(this->leds[i]);
+    }
+        Serial.println("modcode: ");
+    for (int i = 0; i < 9; i++){
+      Serial.println(this->modcode[i]);
+    }
+        Serial.println("builtinleds: ");
+    for (int i = 0; i < 3; i++){
+      Serial.println(this->builtinleds[i]);
+    }
+    Serial.print("Neopixel: ");
+    Serial.println(this->neopixel);
   }
 };
 
-// TODO: these pages are temporary and should be deleted.
-Keypage page0;
-Keypage page1;
+// tracks if a good config is loaded
+bool invalidConfig;
 
 // stores the keypages parsed by core 0
 std::array<Keypage *, 9> keypages;
 
-// used to blink an LED
-int builtinLED_BState;
-int builtinLED_RState;
-
-// stores the address of the keypages for core 1
-std::array<Keypage *, 9> *core1Keypages;
+Adafruit_NeoPixel np(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
 
 // the current page number
 int currpage;
+// the last page number
+bool pagechanged;
 
-// the list of keycodes to send - never more than 9!
-std::array<uint8_t,6> keycode;
+// the list of keycodes to send - never more than 6 per the spec!
+std::array<uint8_t, 6> keycode;
+// how many keys were pressed
 uint8_t count;
+// modifier key collector
+uint8_t modifier;
+
+// whether we've allocated memory for keypages
+bool memallocated;
 
 #endif

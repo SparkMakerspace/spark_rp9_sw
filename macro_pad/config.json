@@ -1,72 +1,211 @@
 {
-	"pages": [{
-			"page": 1,
-			"keys": {
-				"1": "page 1",
-				"2": "page 2",
-				"3": "page 3",
-				"4": "F1",
-				"5": "F2",
-				"6": "F3",
-				"7": "F4",
-				"8": "F5",
-				"9": "F6"
-			},
-			"leds": {
-				"led1": true,
-				"led2": false,
-				"led3": false,
-                "ledR": true,
-                "ledG": false,
-                "ledB": false,
-                "neopixel": "ff0000"
-			}
-		},
-		{
-			"page": 2,
-			"keys": {
-				"1": "page 1",
-				"2": "page 2",
-				"3": "page 3",
-				"4": "alt+F1",
-				"5": "alt+F2",
-				"6": "alt+F3",
-				"7": "alt+F4",
-				"8": "alt+F5",
-				"9": "alt+F6"
-			},
-			"leds": {
-				"led1": false,
-				"led2": true,
-				"led3": false,
-                "ledR": false,
-                "ledG": true,
-                "ledB": false,
-                "neopixel": "00ff00"
-			}
-		},
-		{
-			"page": 3,
-			"keys": {
-				"1": "page 1",
-				"2": "page 2",
-				"3": "page 3",
-				"4": "alt+shift+F1",
-				"5": "alt+shift+F2",
-				"6": "alt+shift+F3",
-				"7": "ctrl+shift+F1",
-				"8": "ctrl+shift+F2",
-				"9": "ctrl+shift+F3"
-			},
-			"leds": {
-				"led1": false,
-				"led2": false,
-				"led3": true,
-                "ledR": false,
-                "ledG": false,
-                "ledB": true,
-                "neopixel": "0000ff"
-			}
-		}
-	]
+  "pages": [
+    {
+      "page": 0,
+      "keys": {
+        "1": "page 0",
+        "2": "page 1",
+        "3": "page 2",
+        "4": "1",
+        "5": "2",
+        "6": "3",
+        "7": "4",
+        "8": "5",
+        "9": "6"
+      },
+      "leds": {
+        "led1": true,
+        "led2": false,
+        "led3": false,
+        "ledR": true,
+        "ledG": false,
+        "ledB": false,
+        "neopixel": "ff0000"
+      }
+    },
+    {
+      "page": 1,
+      "keys": {
+        "1": "page 0",
+        "2": "page 1",
+        "3": "page 2",
+        "4": "a",
+        "5": "b",
+        "6": "c",
+        "7": "d",
+        "8": "e",
+        "9": "f"
+      },
+      "leds": {
+        "led1": false,
+        "led2": true,
+        "led3": false,
+        "ledR": false,
+        "ledG": true,
+        "ledB": false,
+        "neopixel": "00ff00"
+      }
+    },
+    {
+      "page": 2,
+      "keys": {
+        "1": "page 0",
+        "2": "page 1",
+        "3": "page 2",
+        "4": "shift+1",
+        "5": "shift+2",
+        "6": "shift+3",
+        "7": "shift+4",
+        "8": "shift+5",
+        "9": "shift+6"
+      },
+      "leds": {
+        "led1": false,
+        "led2": false,
+        "led3": true,
+        "ledR": false,
+        "ledG": false,
+        "ledB": true,
+        "neopixel": "0000ff"
+      }
+    },
+    {
+      "page": 3,
+      "keys": {
+        "1": "page 0",
+        "2": "page 1",
+        "3": "page 2",
+        "4": "alt+shift+F1",
+        "5": "alt+shift+F2",
+        "6": "alt+shift+F3",
+        "7": "ctrl+shift+F1",
+        "8": "ctrl+shift+F2",
+        "9": "ctrl+shift+F3"
+      },
+      "leds": {
+        "led1": true,
+        "led2": false,
+        "led3": false,
+        "ledR": true,
+        "ledG": false,
+        "ledB": false,
+        "neopixel": "ff0000"
+      }
+    },
+    {
+      "page": 4,
+      "keys": {
+        "1": "page 0",
+        "2": "page 1",
+        "3": "page 2",
+        "4": "F1",
+        "5": "F2",
+        "6": "F3",
+        "7": "F4",
+        "8": "F5",
+        "9": "F6"
+      },
+      "leds": {
+        "led1": false,
+        "led2": true,
+        "led3": false,
+        "ledR": false,
+        "ledG": true,
+        "ledB": false,
+        "neopixel": "00ff00"
+      }
+    },
+    {
+      "page": 5,
+      "keys": {
+        "1": "page 0",
+        "2": "page 1",
+        "3": "page 2",
+        "4": "alt+F1",
+        "5": "alt+F2",
+        "6": "alt+F3",
+        "7": "alt+F4",
+        "8": "alt+F5",
+        "9": "alt+F6"
+      },
+      "leds": {
+        "led1": false,
+        "led2": false,
+        "led3": true,
+        "ledR": false,
+        "ledG": false,
+        "ledB": true,
+        "neopixel": "0000ff"
+      }
+    },
+    {
+      "page": 6,
+      "keys": {
+        "1": "page 0",
+        "2": "page 1",
+        "3": "page 2",
+        "4": "alt+shift+F1",
+        "5": "alt+shift+F2",
+        "6": "alt+shift+F3",
+        "7": "ctrl+shift+F1",
+        "8": "ctrl+shift+F2",
+        "9": "ctrl+shift+F3"
+      },
+      "leds": {
+        "led1": true,
+        "led2": false,
+        "led3": false,
+        "ledR": true,
+        "ledG": false,
+        "ledB": false,
+        "neopixel": "ff0000"
+      }
+    },
+    {
+      "page": 7,
+      "keys": {
+        "1": "page 0",
+        "2": "page 1",
+        "3": "page 2",
+        "4": "F1",
+        "5": "F2",
+        "6": "F3",
+        "7": "F4",
+        "8": "F5",
+        "9": "F6"
+      },
+      "leds": {
+        "led1": false,
+        "led2": true,
+        "led3": false,
+        "ledR": false,
+        "ledG": true,
+        "ledB": false,
+        "neopixel": "00ff00"
+      }
+    },
+    {
+      "page": 8,
+      "keys": {
+        "1": "page 0",
+        "2": "page 1",
+        "3": "page 2",
+        "4": "alt+F1",
+        "5": "alt+F2",
+        "6": "alt+F3",
+        "7": "alt+F4",
+        "8": "alt+F5",
+        "9": "alt+F6"
+      },
+      "leds": {
+        "led1": false,
+        "led2": false,
+        "led3": true,
+        "ledR": false,
+        "ledG": false,
+        "ledB": true,
+        "neopixel": "0000ff"
+      }
+    }
+  ]
 }
